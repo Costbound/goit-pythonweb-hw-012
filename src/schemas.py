@@ -81,6 +81,7 @@ class UserModel(BaseModel):
     email: EmailStr
     avatar_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+    email_verified: bool
 
 
 class UserCreate(BaseModel):

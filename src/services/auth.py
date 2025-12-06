@@ -13,6 +13,11 @@ from src.conf.config import settings
 from src.services.users import UserService
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class Hash:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -70,7 +75,6 @@ async def create_refresh_token(
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
 ):
-    print("get_current_user: ", id(db))
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Unauthorized",
@@ -86,7 +90,12 @@ async def get_current_user(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = await UserService(db).get_user_by_email(email)
+
+    user_service = UserService(db)
+    user = await user_service.get_cached_user_by_email(email)
+    if user is None:
+        user = await user_service.get_user_by_email(email)
+
     if user is None:
         raise credentials_exception
     return user

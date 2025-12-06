@@ -10,7 +10,6 @@ from src.api import contacts
 from src.api import users
 from src.conf.config import settings
 
-
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,

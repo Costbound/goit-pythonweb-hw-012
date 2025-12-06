@@ -10,6 +10,10 @@ services:
         condition: service_healthy
       migrations:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
 
   # Development only: Automatically applies migrations on startup for faster local setup.
   # Remark: To seed the database, run seed.py either from your local machine
@@ -38,6 +42,15 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

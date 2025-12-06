@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
+
+    REDIS_HOST: str
+    REDIS_PORT: int = 6379
+    REDIS_CACHE_EXPIRE_SECONDS: int = 3600
+
+    # Must be setted in .env to use in compose.yml for redis maxmemory setting, here just for validation
+    REDIS_MAX_MEMORY: str
+
     model_config = SettingsConfigDict(
         extra="ignore", env_file=".env", env_file_encoding="utf-8", case_sensitive=True
     )
