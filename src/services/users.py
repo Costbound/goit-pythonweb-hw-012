@@ -59,6 +59,25 @@ class UserService:
             await self.repository.db.refresh(user)
         return user
 
+    async def update_user_password(self, user: User, new_hashed_password: str) -> User:
+        user = await self._ensure_user_managed(user)
+        user = await self.repository.update_user_password(user, new_hashed_password)
+        await self.invalidate_user_cache(user.email)
+        return user
+
+    async def update_reset_password_token(self, user: User, token: str | None) -> User:
+        user = await self._ensure_user_managed(user)
+        user = await self.repository.update_reset_password_token(user, token)
+        if token is not None:
+            await self.invalidate_user_cache(user.email)
+        return user
+
+    async def update_multiple_user_fields(self, user: User, **fields) -> User:
+        user = await self._ensure_user_managed(user)
+        user = await self.repository.update_multiple_fields(user, **fields)
+        await self.cache_user(user)
+        return user
+
     async def cache_user(self, user: User) -> None:
         redis_client = await get_redis()
         cache_key = f"user:email:{user.email}"
@@ -66,3 +85,8 @@ class UserService:
         await redis_client.set(
             cache_key, user_data, ex=settings.REDIS_CACHE_EXPIRE_SECONDS
         )
+
+    async def invalidate_user_cache(self, email: str) -> None:
+        redis_client = await get_redis()
+        cache_key = f"user:email:{email}"
+        await redis_client.delete(cache_key)

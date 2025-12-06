@@ -37,7 +37,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
-      POSTGRES_DB: goit-pythonweb-hw-10
+      POSTGRES_DB: goit-pythonweb-hw-12
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

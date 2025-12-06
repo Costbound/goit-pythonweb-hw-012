@@ -101,3 +101,7 @@ class TokenRefreshRequest(BaseModel):
 
 class EmailVerificationRequest(BaseModel):
     email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr

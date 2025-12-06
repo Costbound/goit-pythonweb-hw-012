@@ -50,3 +50,4 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     refresh_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email_verified: Mapped[bool] = mapped_column(nullable=False, default=False)
+    reset_password_token: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -115,7 +115,7 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> User | None:
         return None
 
 
-def create_eamil_token(data: dict) -> str:
+def create_email_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(UTC) + timedelta(
         seconds=settings.VERIFICATION_TOKEN_EXPIRE_SECONDS
