@@ -24,3 +24,6 @@ env/
 alembic/versions/*.pyc
 
 .coverage
+
+# Sphinx documentation build
+docs/build/

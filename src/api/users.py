@@ -1,3 +1,10 @@
+"""
+Users API endpoints.
+
+This module provides endpoints for user profile management, including
+retrieving current user information and updating user avatars.
+"""
+
 from fastapi import APIRouter, Depends, Request, File, UploadFile
 from fastapi.exceptions import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +32,18 @@ async def get_current_user_info(
     request: Request,
     user: User = Depends(get_current_user),
 ):
+    """
+    Retrieve current authenticated user information.
+
+    Rate limited to 2 requests per minute per IP address.
+
+    :param request: The HTTP request object (used for rate limiting).
+    :type request: Request
+    :param user: The authenticated user.
+    :type user: User
+    :return: Current user details.
+    :rtype: UserModel
+    """
     return user
 
 
@@ -35,6 +54,24 @@ async def update_user_avatar(
     redis: Redis = Depends(get_redis),
     user: User = Depends(get_current_admin_user),
 ):
+    """
+    Update user avatar image.
+
+    Uploads the avatar to Cloudinary and updates the user's profile.
+    Requires admin role.
+
+    :param file: The avatar image file to upload.
+    :type file: UploadFile
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :param user: The authenticated admin user.
+    :type user: User
+    :raises HTTPException: 500 if avatar upload fails.
+    :return: Updated user with new avatar URL.
+    :rtype: UserModel
+    """
     try:
         avatar_url = CloudinaryService(
             settings.CLOUDINARY_CLOUD_NAME,

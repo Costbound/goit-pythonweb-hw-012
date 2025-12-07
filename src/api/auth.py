@@ -1,3 +1,10 @@
+"""
+Authentication API endpoints.
+
+This module provides authentication-related endpoints including user registration,
+login, token refresh, email verification, and password reset functionality.
+"""
+
 import asyncio
 from fastapi import (
     APIRouter,
@@ -33,6 +40,7 @@ from src.services.users import UserService
 from src.database.db import get_db
 from src.database.redis import get_redis
 
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -44,6 +52,25 @@ async def signup(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """
+    Register a new user.
+
+    Creates a new user account and sends a verification email.
+
+    :param user_data: User registration data including email and password.
+    :type user_data: UserCreate
+    :param background_tasks: FastAPI background tasks for sending emails.
+    :type background_tasks: BackgroundTasks
+    :param request: The HTTP request object.
+    :type request: Request
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :raises HTTPException: 409 if user with email already exists.
+    :return: The newly created user.
+    :rtype: UserModel
+    """
     user_service = UserService(db, redis)
 
     existing_user = await user_service.get_user_by_email(user_data.email)
@@ -67,6 +94,21 @@ async def signin(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """
+    Authenticate user and return access tokens.
+
+    Validates user credentials and returns JWT access and refresh tokens.
+
+    :param form_data: OAuth2 form data containing username (email) and password.
+    :type form_data: OAuth2PasswordRequestForm
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :raises HTTPException: 401 if credentials are invalid or email not verified.
+    :return: Access token, refresh token, and token type.
+    :rtype: Token
+    """
     user = await UserService(db, redis).get_user_by_email(form_data.username)
     if not user or not Hash().verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -100,6 +142,21 @@ async def generate_access_token(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """
+    Generate a new access token using a refresh token.
+
+    Validates the refresh token and returns a new access token.
+
+    :param body: Request body containing the refresh token.
+    :type body: TokenRefreshRequest
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :raises HTTPException: 401 if refresh token is invalid.
+    :return: New access token, same refresh token, and token type.
+    :rtype: Token
+    """
     user = await verify_refresh_token(body.refresh_token, db, redis)
     if user is None:
         raise HTTPException(
@@ -123,6 +180,24 @@ async def request_confirmation_email(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """
+    Request a new email verification link.
+
+    Sends a verification email to the user if their email is not yet verified.
+
+    :param body: Request body containing the user's email.
+    :type body: EmailVerificationRequest
+    :param background_tasks: FastAPI background tasks for sending emails.
+    :type background_tasks: BackgroundTasks
+    :param request: The HTTP request object.
+    :type request: Request
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :return: Success message.
+    :rtype: dict
+    """
     user = await UserService(db, redis).get_user_by_email(body.email)
     if user and user.email_verified:
         return {"message": "Email is already verified."}
@@ -137,6 +212,21 @@ async def request_confirmation_email(
 async def confirm_email(
     token: str, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
 ):
+    """
+    Verify user's email address using a token.
+
+    Validates the email verification token and marks the email as verified.
+
+    :param token: Email verification token from the confirmation link.
+    :type token: str
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :raises HTTPException: 400 if token is invalid.
+    :return: Success message.
+    :rtype: dict
+    """
     email = get_email_from_token(token)
     user_service = UserService(db, redis)
     user = await user_service.get_user_by_email(email)
@@ -159,6 +249,24 @@ async def request_rest_password(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """
+    Request a password reset link.
+
+    Generates a password reset token and sends an email with reset instructions.
+
+    :param body: Request body containing the user's email.
+    :type body: ResetPasswordRequest
+    :param background_tasks: FastAPI background tasks for sending emails.
+    :type background_tasks: BackgroundTasks
+    :param request: The HTTP request object.
+    :type request: Request
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :return: Success message.
+    :rtype: dict
+    """
     user_service = UserService(db, redis)
     user = await user_service.get_user_by_email(body.email)
     if user and user.reset_password_token is None:
@@ -183,6 +291,23 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """
+    Reset user's password using a reset token.
+
+    Validates the reset token and updates the user's password.
+
+    :param token: Password reset token from the reset link.
+    :type token: str
+    :param new_password: New password (6-72 characters).
+    :type new_password: str
+    :param db: Database session dependency.
+    :type db: AsyncSession
+    :param redis: Redis client dependency.
+    :type redis: Redis
+    :raises HTTPException: 400 if token is invalid or new password same as old.
+    :return: Success message.
+    :rtype: dict
+    """
     email = get_email_from_token(token)
     user_service = UserService(db, redis)
     user = await user_service.get_user_by_email(email)
