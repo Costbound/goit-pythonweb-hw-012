@@ -1,3 +1,4 @@
+import os
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -11,8 +12,12 @@ from src.database.db import get_db
 from src.database.redis import get_redis
 from src.services.auth import create_access_token, Hash
 
-SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://postgres:test_password@postgres-test:5432/goit-pythonweb-hw-12-test"
-TEST_REDIS_URL = "redis://redis-test:6379/0"
+
+SQLALCHEMY_DATABASE_URL = (
+    os.getenv("TEST_DATABASE_URL")
+    or "postgresql+asyncpg://postgres:test_password@localhost:5433/goit-pythonweb-hw-12-test"
+)
+REDIS_URL = os.getenv("TEST_REDIS_URL") or "redis://localhost:6380/0"
 
 test_user = {
     "email": "deadpool@example.com",
@@ -74,7 +79,7 @@ async def redis_session():
     Real Redis client for tests on localhost:6380.
     Flush DB before and after each test.
     """
-    client = Redis.from_url(TEST_REDIS_URL, encoding="utf-8", decode_responses=True)
+    client = Redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
     await client.flushdb()
     yield client
     await client.flushdb()
@@ -132,17 +137,36 @@ async def get_token(test_user_in_db):
     """
     Generate an access token for the test user.
     """
-    token = create_access_token(data={"sub": test_user_in_db.email})
+    token = await create_access_token(data={"sub": test_user_in_db.email})
     return token
 
 
-@pytest_asyncio.fixture(scope="function")
-async def authorized_client(client, get_token):
-    """
-    Provide a test client with authorization header.
-    """
-    client.headers = {
-        **client.headers,
-        "Authorization": f"Bearer {get_token}",
-    }
+@pytest_asyncio.fixture
+async def authorized_client(client: AsyncClient, get_token: str) -> AsyncClient:
+    """Client with authorization header."""
+    client.headers.update({"Authorization": f"Bearer {get_token}"})
     return client
+
+
+@pytest_asyncio.fixture
+async def create_authenticated_user(client: AsyncClient, db_session):
+    """Factory fixture to create and authenticate users."""
+
+    async def _create_user(email: str, password: str):
+        """Create a new user and return their token."""
+        # Create user directly in database
+        password_hash = Hash().get_password_hash(password)
+        user = User(
+            email=email,
+            password_hash=password_hash,
+            email_verified=True,
+        )
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+
+        # Create access token
+        token = await create_access_token(data={"sub": user.email})
+        return token, user
+
+    return _create_user

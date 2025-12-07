@@ -1,18 +1,8 @@
 services:
-  test-runner:
-    build: .
-    environment:
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:test_password@postgres-test:5432/goit-pythonweb-hw-12-test
-      TEST_REDIS_URL: redis://redis-test:6379/0
-    depends_on:
-      postgres-test:
-        condition: service_healthy
-      redis-test:
-        condition: service_healthy
-    command: poetry run pytest
-
   postgres-test:
     image: postgres:18-alpine
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: test_password
@@ -26,6 +16,8 @@ services:
   redis-test:
     image: redis:8-alpine
     command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s

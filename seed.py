@@ -75,7 +75,7 @@ async def main(user_id: int):
     async with async_session() as session:
         user = await session.get(User, user_id)
         if not user:
-            user = User(email="seeduser@example.com", hashed_password="not_a_real_hash")
+            user = User(email="seeduser@example.com", password_hash="not_a_real_hash")
             session.add(user)
             await session.commit()
             print(f"👤 Created default user with id {user.id}")

@@ -83,7 +83,7 @@ async def create_contact(
         )
 
 
-@router.patch("{contact_id}", response_model=ContactResponse)
+@router.patch("/{contact_id}", response_model=ContactResponse)
 async def update_contact(
     contact_id: int,
     contact: ContactUpdate,
@@ -99,7 +99,7 @@ async def update_contact(
     return updated_contact
 
 
-@router.delete("{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_contact(
     contact_id: int,
     user: User = Depends(get_current_user),
