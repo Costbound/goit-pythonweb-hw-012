@@ -22,3 +22,5 @@ env/
 
 # Alembic
 alembic/versions/*.pyc
+
+.coverage

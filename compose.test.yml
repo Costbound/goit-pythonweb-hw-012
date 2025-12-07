@@ -9,7 +9,9 @@ services:
         condition: service_healthy
       redis-test:
         condition: service_healthy
-    command: poetry run pytest
+    volumes:
+      - ./htmlcov:/app/htmlcov
+    command: poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
 
   postgres-test:
     image: postgres:18-alpine
