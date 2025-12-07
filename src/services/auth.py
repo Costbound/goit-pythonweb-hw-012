@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 
-from src.database.models import User
+from src.database.models import User, UserRole
 from src.database.db import get_db
 from src.conf.config import settings
 from src.services.users import UserService
@@ -140,3 +140,15 @@ def get_email_from_token(token: str) -> str:
         return email
     except JWTError:
         raise invalid_token_exception
+
+
+def get_current_admin_user(user: User = Depends(get_current_user)):
+    print(f"user.role: {user.role!r} (type: {type(user.role)})")
+    print(f"UserRole.ADMIN: {UserRole.ADMIN!r} (type: {type(UserRole.ADMIN)})")
+    print(f"Are they equal? {user.role == UserRole.ADMIN}")
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+    return user

@@ -1,13 +1,19 @@
+from enum import Enum
 from datetime import date, datetime
 
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
-from sqlalchemy.types import Integer, String, Date, Text, DateTime
+from sqlalchemy.types import Integer, String, Date, Text, DateTime, Enum as SqlEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    USER = "USER"
 
 
 class Contact(Base):
@@ -51,3 +57,6 @@ class User(Base):
     refresh_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email_verified: Mapped[bool] = mapped_column(nullable=False, default=False)
     reset_password_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role: Mapped[UserRole] = mapped_column(
+        SqlEnum(UserRole), default=UserRole.USER, nullable=False
+    )

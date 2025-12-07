@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 import phonenumbers
 from phonenumbers import NumberParseException
 
+from src.database.models import UserRole
+
 
 def validate_phone_number(phone: str) -> str:
     try:
@@ -82,11 +84,13 @@ class UserModel(BaseModel):
     avatar_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
     email_verified: bool
+    role: UserRole
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=72)
+    role: UserRole
 
 
 class Token(BaseModel):
