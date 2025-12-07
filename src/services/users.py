@@ -1,16 +1,17 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import inspect as sqlalchemy_inspect
+from redis.asyncio import Redis
 
 from src.repository.users import UserRepository
 from src.schemas import UserCreate, UserModel
 from src.database.models import User
-from src.database.redis import get_redis
 from src.conf.config import settings
 
 
 class UserService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, redis_client: Redis):
         self.repository = UserRepository(db)
+        self.redis_client = redis_client
 
     async def create_user(self, body: UserCreate) -> User:
         user = await self.repository.create_user(body, avatar_url=None)
@@ -30,9 +31,8 @@ class UserService:
         return user
 
     async def get_cached_user_by_email(self, email: str) -> User | None:
-        redis_client = await get_redis()
         cache_key = f"user:email:{email}"
-        cached_user = await redis_client.get(cache_key)
+        cached_user = await self.redis_client.get(cache_key)
         if not cached_user:
             return None
         user_data = UserModel.model_validate_json(cached_user)
@@ -79,14 +79,12 @@ class UserService:
         return user
 
     async def cache_user(self, user: User) -> None:
-        redis_client = await get_redis()
         cache_key = f"user:email:{user.email}"
         user_data = UserModel.model_validate(user).model_dump_json()
-        await redis_client.set(
+        await self.redis_client.set(
             cache_key, user_data, ex=settings.REDIS_CACHE_EXPIRE_SECONDS
         )
 
     async def invalidate_user_cache(self, email: str) -> None:
-        redis_client = await get_redis()
         cache_key = f"user:email:{email}"
-        await redis_client.delete(cache_key)
+        await self.redis_client.delete(cache_key)

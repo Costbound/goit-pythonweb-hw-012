@@ -6,9 +6,11 @@ from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
+from redis.asyncio import Redis
 
 from src.database.models import User, UserRole
 from src.database.db import get_db
+from src.database.redis import get_redis
 from src.conf.config import settings
 from src.services.users import UserService
 
@@ -73,7 +75,9 @@ async def create_refresh_token(
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    redis_client: Redis = Depends(get_redis),
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -91,7 +95,7 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    user_service = UserService(db)
+    user_service = UserService(db, redis_client)
     user = await user_service.get_cached_user_by_email(email)
     if user is None:
         user = await user_service.get_user_by_email(email)
@@ -101,7 +105,9 @@ async def get_current_user(
     return user
 
 
-async def verify_refresh_token(token: str, db: AsyncSession) -> User | None:
+async def verify_refresh_token(
+    token: str, db: AsyncSession, redis_client: Redis
+) -> User | None:
     try:
         payload = jwt.decode(
             token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
@@ -109,7 +115,7 @@ async def verify_refresh_token(token: str, db: AsyncSession) -> User | None:
         email = payload.get("sub")
         if email is None or payload.get("token_type") != "refresh":
             return None
-        user = await UserService(db).get_user_by_email(email)
+        user = await UserService(db, redis_client).get_user_by_email(email)
         return user
     except JWTError:
         return None

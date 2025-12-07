@@ -9,7 +9,7 @@ from fastapi import (
     Form,
 )
 from fastapi.security import OAuth2PasswordRequestForm
-
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.email import send_verification_email, send_reset_password_email
@@ -31,6 +31,7 @@ from src.services.auth import (
 )
 from src.services.users import UserService
 from src.database.db import get_db
+from src.database.redis import get_redis
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,8 +42,9 @@ async def signup(
     background_tasks: BackgroundTasks,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
-    user_service = UserService(db)
+    user_service = UserService(db, redis)
 
     existing_user = await user_service.get_user_by_email(user_data.email)
     if existing_user:
@@ -61,9 +63,11 @@ async def signup(
 
 @router.post("/signin", response_model=Token)
 async def signin(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
-    user = await UserService(db).get_user_by_email(form_data.username)
+    user = await UserService(db, redis).get_user_by_email(form_data.username)
     if not user or not Hash().verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -94,8 +98,9 @@ async def signin(
 async def generate_access_token(
     body: TokenRefreshRequest,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
-    user = await verify_refresh_token(body.refresh_token, db)
+    user = await verify_refresh_token(body.refresh_token, db, redis)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,8 +121,9 @@ async def request_confirmation_email(
     background_tasks: BackgroundTasks,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
-    user = await UserService(db).get_user_by_email(body.email)
+    user = await UserService(db, redis).get_user_by_email(body.email)
     if user and user.email_verified:
         return {"message": "Email is already verified."}
     if user:
@@ -128,9 +134,11 @@ async def request_confirmation_email(
 
 
 @router.get("/confirm-email/{token}")
-async def confirm_email(token: str, db: AsyncSession = Depends(get_db)):
+async def confirm_email(
+    token: str, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
+):
     email = get_email_from_token(token)
-    user_service = UserService(db)
+    user_service = UserService(db, redis)
     user = await user_service.get_user_by_email(email)
     if not user:
         raise HTTPException(
@@ -149,8 +157,9 @@ async def request_rest_password(
     background_tasks: BackgroundTasks,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
-    user_service = UserService(db)
+    user_service = UserService(db, redis)
     user = await user_service.get_user_by_email(body.email)
     if user and user.reset_password_token is None:
         user = await user_service.update_reset_password_token(
@@ -172,9 +181,10 @@ async def reset_password(
     token: str,
     new_password: str = Form(..., min_length=6, max_length=72),
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
     email = get_email_from_token(token)
-    user_service = UserService(db)
+    user_service = UserService(db, redis)
     user = await user_service.get_user_by_email(email)
     if not user or user.reset_password_token != token:
         raise HTTPException(

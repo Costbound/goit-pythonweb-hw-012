@@ -80,6 +80,8 @@ class UserRepository:
         Raises:
             ValueError: If invalid or protected field is provided
         """
+        if not fields:
+            return user  # No fields to update
         invalid_fields = set(fields.keys()) - self._valid_fields
         if invalid_fields:
             raise ValueError(
